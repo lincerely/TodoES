@@ -33,18 +33,34 @@ readCmd actions = do
     input <- getLine
     let (command:args) = words input
      in case command of
-     "add"    -> do
-         actions' <- readAdd actions args
-         readCmd actions'
-     "del"    -> do
-         actions' <- readDel actions args
-         readCmd actions'
-     "update" -> do
-         actions' <- readUpdate actions args
-         readCmd actions'
-     "undo" -> do
-         actions' <- readUndo actions args
-         readCmd actions'
+     "add"    ->
+         case readAdd actions args of
+           Left err -> do
+               print err
+               readCmd actions
+           Right actions' ->
+               readCmd actions'
+     "del"    ->
+         case readDel actions args of
+           Left err -> do
+               print err
+               readCmd actions
+           Right actions' ->
+               readCmd actions'
+     "update" ->
+         case readUpdate actions args of
+           Left err -> do
+               print err
+               readCmd actions
+           Right actions' ->
+               readCmd actions'
+     "undo" ->
+         case readUndo actions args of
+           Left err -> do
+               print err
+               readCmd actions
+           Right actions' ->
+               readCmd actions'
      "stack" -> do
          mapM_ print actions
          readCmd actions
@@ -53,52 +69,28 @@ readCmd actions = do
          putStrLn "invalid command, expect [add/del/update/undo/exit]"
          readCmd actions
 
-readUndo :: [Action] -> [String] -> IO [Action]
+readUndo :: [Action] -> [String] -> Either String [Action]
 readUndo (prevAction:actions) [] =
-      case issue (CmdUndo prevAction) (constructList actions) of
-        Left err -> do
-            putStrLn err
-            return actions
-        Right action -> return $ action : prevAction : actions
-readUndo actions _ = do
-    putStrLn "undo: no parameter is needed"
-    return actions
+    (:prevAction:actions) <$> issue (CmdUndo prevAction) (constructList actions)
+readUndo _ _ = Left "undo: invalid parameter, expect: none"
 
-readAdd :: [Action] -> [String] -> IO [Action]
-readAdd actions [] = do
-    putStrLn "add: invalid parameter, expect: content"
-    return actions
-readAdd actions input=
-      case issue (CmdAdd (unwords input)) (constructList actions) of
-        Left err -> do
-            putStrLn err
-            return actions
-        Right action -> return $ action : actions
+readAdd :: [Action] -> [String] -> Either String [Action]
+readAdd _ [] = Left "add: invalid parameter, expect: content"
+readAdd actions input =
+      (:actions) <$> issue (CmdAdd (unwords input)) (constructList actions)
 
-readDel :: [Action] -> [String] -> IO [Action]
+readDel :: [Action] -> [String] -> Either String [Action]
 readDel actions [inputID]=
     let todoID = read inputID :: Int
-     in case issue (CmdDelete todoID) (constructList actions) of
-          Left err -> do
-              putStrLn err
-              return actions
-          Right action -> return $ action : actions
-readDel actions _ = do
-    putStrLn "del: invalid parameters, expect: todoID"
-    return actions
+     in (:actions) <$> issue (CmdDelete todoID) (constructList actions)
+readDel _ _ = Left "del: invalid parameters, expect: todoID"
 
-readUpdate :: [Action] -> [String] -> IO [Action]
+readUpdate :: [Action] -> [String] -> Either String [Action]
 readUpdate actions [inputID,inputState] =
     let todoID = read inputID :: Int
         state' = read inputState :: TodoState
-     in case issue (CmdUpdate todoID state') (constructList actions) of
-          Left err -> do
-              putStrLn err
-              return actions
-          Right action -> return $ action : actions
-readUpdate actions _ = do
-    putStrLn "update: invalid parameters, expect: todoID state"
-    return actions
+     in (:actions) <$> issue (CmdUpdate todoID state') (constructList actions)
+readUpdate _ _ = Left "update: invalid parameters, expect: todoID state"
 
 formatTodo :: Todo -> String
 formatTodo t = show (idx t) ++ " | " ++ content t ++ " | " ++ show (state t)
