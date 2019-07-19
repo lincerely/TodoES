@@ -1,10 +1,23 @@
 module Main where
 
+import           Data.Maybe
+import           System.Directory
+import           System.IO
+import           Text.Read
 import           Todo
 
 main :: IO()
 main = do
-    _ <- readCmd []
+    handle <- openFile "todo.txt" ReadMode
+    (tempName, tempHandle) <- openTempFile "." "temp"
+    contents <- hGetContents handle
+    let maybeTodos = readMaybe contents :: Maybe [Todo]
+    todos' <- readCmd (fromMaybe [] maybeTodos)
+    hPutStr tempHandle (show todos')
+    hClose handle
+    hClose tempHandle
+    removeFile "todo.txt"
+    renameFile tempName "todo.txt"
     putStrLn "Bye."
 
 readCmd :: [Todo] -> IO [Todo]
