@@ -1,5 +1,6 @@
 module Main where
 
+import           Control.Monad
 import           Data.Maybe
 import           System.Directory
 import           System.IO
@@ -8,17 +9,22 @@ import           Todo
 
 main :: IO()
 main = do
-    handle <- openFile "todo.txt" ReadMode
+    contents <- load "todo.txt"
     (tempName, tempHandle) <- openTempFile "." "temp"
-    contents <- hGetContents handle
     let maybeTodos = readMaybe contents :: Maybe [Action]
     todos' <- readCmd (fromMaybe [] maybeTodos)
     hPutStr tempHandle (show todos')
-    hClose handle
     hClose tempHandle
-    removeFile "todo.txt"
+    isReplace <- doesFileExist "todo.txt"
+    when isReplace $ removeFile "todo.txt"
     renameFile tempName "todo.txt"
     putStrLn "Bye."
+
+load :: FilePath -> IO String
+load path = do
+    exists <- doesFileExist path
+    if exists then readFile path
+              else return ""
 
 getList :: [Action] -> [Todo]
 getList = foldr apply []
