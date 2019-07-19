@@ -15,6 +15,7 @@ data Todo = Todo { idx     :: Int
 data Command = CmdAdd String
              | CmdDelete Int
              | CmdUpdate Int TodoState
+             | CmdUndo Action
              deriving (Eq, Show, Read)
 
 issue :: Command -> [Todo] -> Either String Action
@@ -22,13 +23,18 @@ issue (CmdAdd newContent) ts = Right $ Add (Todo (length ts) newContent Pending)
 issue (CmdDelete targetID) ts =
     let targetTodo = find (\t -> idx t == targetID) ts
      in case targetTodo of
-          Nothing -> Left $ "todo with id " ++ show targetID ++ " not found"
-          Just t  -> Right $ Delete t
+          Nothing -> 
+              Left $ "todo with id " ++ show targetID ++ " not found"
+          Just t  -> 
+              Right $ Delete t
 issue (CmdUpdate targetID newState) ts =
     let targetTodo = find (\t -> idx t == targetID) ts
      in case targetTodo of
-          Nothing -> Left $ "todo with id " ++ show targetID ++ " not found"
-          Just (Todo _ _ oldState) -> Right $ UpdateState targetID oldState newState
+          Nothing -> 
+              Left $ "todo with id " ++ show targetID ++ " not found"
+          Just (Todo _ _ oldState) -> 
+              Right $ UpdateState targetID oldState newState
+issue (CmdUndo action) _ = Right $ Undo action
 
 data Action = Add Todo
             | Delete Todo
@@ -41,6 +47,9 @@ apply (Add t)                        = (++[t])
 apply (Delete t)                     = delete t
 apply (UpdateState todoID oldS newS) = updateTodoState todoID oldS newS
 apply (Undo action)                  = apply $ undo action
+
+constructList :: [Action] -> [Todo]
+constructList = foldr apply []
 
 updateTodoState :: Int -> TodoState -> TodoState -> [Todo] -> [Todo]
 updateTodoState _ _ _ [] = []

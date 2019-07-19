@@ -9,15 +9,15 @@ import           Todo
 
 main :: IO()
 main = do
-    contents <- load "todo.txt"
+    contents <- load "save.txt"
     (tempName, tempHandle) <- openTempFile "." "temp"
     let maybeTodos = readMaybe contents :: Maybe [Action]
     todos' <- readCmd (fromMaybe [] maybeTodos)
     hPutStr tempHandle (show todos')
     hClose tempHandle
-    isReplace <- doesFileExist "todo.txt"
-    when isReplace $ removeFile "todo.txt"
-    renameFile tempName "todo.txt"
+    isReplace <- doesFileExist "save.txt"
+    when isReplace $ removeFile "save.txt"
+    renameFile tempName "save.txt"
     putStrLn "Bye."
 
 load :: FilePath -> IO String
@@ -26,12 +26,9 @@ load path = do
     if exists then readFile path
               else return ""
 
-getList :: [Action] -> [Todo]
-getList = foldr apply []
-
 readCmd :: [Action] -> IO [Action]
 readCmd actions = do
-    mapM_ (putStrLn . formatTodo) $ getList actions
+    mapM_ (putStrLn . formatTodo) $ constructList actions
     putStr "> "
     input <- getLine
     let (command:args) = words input
@@ -45,17 +42,34 @@ readCmd actions = do
      "update" -> do
          actions' <- readUpdate actions args
          readCmd actions'
+     "undo" -> do
+         actions' <- readUndo actions args
+         readCmd actions'
+     "stack" -> do
+         mapM_ print actions
+         readCmd actions
      "exit"      -> return actions
      _ -> do
-         putStrLn "invalid command, expect [add/del/update/exit]"
+         putStrLn "invalid command, expect [add/del/update/undo/exit]"
          readCmd actions
+
+readUndo :: [Action] -> [String] -> IO [Action]
+readUndo (prevAction:actions) [] =
+      case issue (CmdUndo prevAction) (constructList actions) of
+        Left err -> do
+            putStrLn err
+            return actions
+        Right action -> return $ action : prevAction : actions
+readUndo actions _ = do
+    putStrLn "undo: no parameter is needed"
+    return actions
 
 readAdd :: [Action] -> [String] -> IO [Action]
 readAdd actions [] = do
     putStrLn "add: invalid parameter, expect: content"
     return actions
 readAdd actions input=
-      case issue (CmdAdd (unwords input)) (getList actions) of
+      case issue (CmdAdd (unwords input)) (constructList actions) of
         Left err -> do
             putStrLn err
             return actions
@@ -64,7 +78,7 @@ readAdd actions input=
 readDel :: [Action] -> [String] -> IO [Action]
 readDel actions [inputID]=
     let todoID = read inputID :: Int
-     in case issue (CmdDelete todoID) (getList actions) of
+     in case issue (CmdDelete todoID) (constructList actions) of
           Left err -> do
               putStrLn err
               return actions
@@ -77,7 +91,7 @@ readUpdate :: [Action] -> [String] -> IO [Action]
 readUpdate actions [inputID,inputState] =
     let todoID = read inputID :: Int
         state' = read inputState :: TodoState
-     in case issue (CmdUpdate todoID state') (getList actions) of
+     in case issue (CmdUpdate todoID state') (constructList actions) of
           Left err -> do
               putStrLn err
               return actions
