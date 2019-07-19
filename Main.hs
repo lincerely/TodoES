@@ -5,58 +5,64 @@ import           Todo
 main :: IO()
 main = do
     _ <- readCmd []
-    print "Bye."
+    putStrLn "Bye."
 
 readCmd :: [Todo] -> IO [Todo]
 readCmd todos = do
-    mapM_ print todos
-    print "Command? [add/del/update]"
+    mapM_ (putStrLn . formatTodo) todos
+    putStr "> "
     input <- getLine
-    let cmdStr = read ("\""++input++"\"") :: String
-     in case cmdStr of
+    let (command:args) = words input
+     in case command of
      "add"    -> do
-         todos' <- readAdd todos
+         todos' <- readAdd todos args
          readCmd todos'
      "del"    -> do
-         todos' <- readDel todos
+         todos' <- readDel todos args
          readCmd todos'
      "update" -> do
-         todos' <- readUpdate todos
+         todos' <- readUpdate todos args
          readCmd todos'
-     _        -> return todos
+     "exit"      -> return todos
+     _ -> do
+         putStrLn "invalid command, expect [add/del/update/exit]"
+         readCmd todos
 
-readAdd :: [Todo] -> IO [Todo]
-readAdd todos = do
-     print "Content? [string]"
-     contentInput <- getLine
-     let contentStr = read ("\"" ++ contentInput ++ "\""):: String
-      in case issue (CmdAdd contentStr) todos of
-           Left err -> do
-               print err
-               return todos
-           Right action -> return $ apply action todos
+readAdd :: [Todo] -> [String] -> IO [Todo]
+readAdd todos [] = do
+    putStrLn "add: invalid parameter, expect: content"
+    return todos
+readAdd todos input=
+      case issue (CmdAdd (unwords input)) todos of
+        Left err -> do
+            putStrLn err
+            return todos
+        Right action -> return $ apply action todos
 
-readDel :: [Todo] -> IO [Todo]
-readDel todos = do
-    print "Todo ID? [int]"
-    idxInput <- getLine
-    let todoID = read idxInput :: Int
+readDel :: [Todo] -> [String] -> IO [Todo]
+readDel todos [inputID]=
+    let todoID = read inputID :: Int
      in case issue (CmdDelete todoID) todos of
           Left err -> do
-              print err
+              putStrLn err
               return todos
           Right action -> return $ apply action todos
+readDel todos _ = do
+    putStrLn "del: invalid parameters, expect: todoID"
+    return todos
 
-readUpdate :: [Todo] -> IO [Todo]
-readUpdate todos = do
-    print "Todo ID? [int]"
-    idxInput <- getLine
-    print "Status? [Pending/InProgress/Done]"
-    stateInput <- getLine
-    let todoID = read idxInput :: Int
-        state' = read stateInput :: TodoState
+readUpdate :: [Todo] -> [String] -> IO [Todo]
+readUpdate todos [inputID,inputState] =
+    let todoID = read inputID :: Int
+        state' = read inputState :: TodoState
      in case issue (CmdUpdate todoID state') todos of
           Left err -> do
-              print err
+              putStrLn err
               return todos
           Right action -> return $ apply action todos
+readUpdate todos _ = do
+    putStrLn "update: invalid parameters, expect: todoID state"
+    return todos
+
+formatTodo :: Todo -> String
+formatTodo t = show (idx t) ++ " | " ++ content t ++ " | " ++ show (state t)
