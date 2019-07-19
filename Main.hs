@@ -59,7 +59,7 @@ readAdd actions input=
         Left err -> do
             putStrLn err
             return actions
-        Right action -> return $ actions ++ [action]
+        Right action -> return $ action : actions
 
 readDel :: [Action] -> [String] -> IO [Action]
 readDel actions [inputID]=
@@ -68,7 +68,7 @@ readDel actions [inputID]=
           Left err -> do
               putStrLn err
               return actions
-          Right action -> return $ actions ++  [action]
+          Right action -> return $ action : actions
 readDel actions _ = do
     putStrLn "del: invalid parameters, expect: todoID"
     return actions
@@ -81,7 +81,7 @@ readUpdate actions [inputID,inputState] =
           Left err -> do
               putStrLn err
               return actions
-          Right action -> return $ actions ++ [action]
+          Right action -> return $ action : actions
 readUpdate actions _ = do
     putStrLn "update: invalid parameters, expect: todoID state"
     return actions
