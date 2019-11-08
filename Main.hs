@@ -69,6 +69,13 @@ readCmd actions = do
          putStrLn "invalid command, expect [add/del/update/undo/exit]"
          readCmd actions
 
+actionMap :: [(String, [Action] -> [String] -> Either String [Action])]
+actionMap = [("add", readAdd)
+            ,("del", readDel)
+            ,("update", readUpdate)
+            ,("undo", readUndo)
+            ]
+
 readUndo :: [Action] -> [String] -> Either String [Action]
 readUndo (prevAction:actions) [] =
     (:prevAction:actions) <$> issue (CmdUndo prevAction) (constructList actions)
@@ -93,4 +100,4 @@ readUpdate actions [inputID,inputState] =
 readUpdate _ _ = Left "update: invalid parameters, expect: todoID state"
 
 formatTodo :: Todo -> String
-formatTodo t = show (idx t) ++ " | " ++ content t ++ " | " ++ show (state t)
+formatTodo t = show (getIndex t) ++ " | " ++ getContent t ++ " | " ++ show (getState t)

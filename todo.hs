@@ -1,15 +1,16 @@
 module Todo where
 
 import           Data.List
+import           Text.Printf
 
 data TodoState = Pending
                | InProgress
                | Done
                deriving (Eq, Show, Read, Ord, Enum)
 
-data Todo = Todo { idx     :: Int
-                 , content :: String
-                 , state   :: TodoState
+data Todo = Todo { getIndex   :: Int
+                 , getContent :: String
+                 , getState   :: TodoState
                  } deriving (Eq, Show, Read, Ord)
 
 data Command = CmdAdd String
@@ -20,17 +21,17 @@ data Command = CmdAdd String
 
 issue :: Command -> [Todo] -> Either String Action
 issue (CmdAdd newContent) [] = Right $ Add (Todo 0 newContent Pending)
-issue (CmdAdd newContent) ts =
-    Right $ Add (Todo (idx (last ts) + 1) newContent Pending)
-issue (CmdDelete targetID) ts =
-    let targetTodo = find (\t -> idx t == targetID) ts
+issue (CmdAdd newContent) todos =
+    Right $ Add (Todo (getIndex (last todos) + 1) newContent Pending)
+issue (CmdDelete targetID) todos =
+    let targetTodo = find (\t -> getIndex t == targetID) todos
     in  case targetTodo of
-            Nothing -> Left $ "todo with id " ++ show targetID ++ " not found"
+            Nothing -> Left $ printf "todo %d not found" targetID
             Just t  -> Right $ Delete t
-issue (CmdUpdate targetID newState) ts =
-    let targetTodo = find (\t -> idx t == targetID) ts
+issue (CmdUpdate targetID newState) todos =
+    let targetTodo = find (\t -> getIndex t == targetID) todos
     in  case targetTodo of
-            Nothing -> Left $ "todo with id " ++ show targetID ++ " not found"
+            Nothing -> Left $ printf "todo %d not found" targetID
             Just (Todo _ _ oldState) ->
                 Right $ UpdateState targetID oldState newState
 issue (CmdUndo action) _ = Right $ Undo action
@@ -52,9 +53,9 @@ constructList = foldr apply []
 
 updateTodoState :: Int -> TodoState -> TodoState -> [Todo] -> [Todo]
 updateTodoState _ _ _ [] = []
-updateTodoState todoID oldState newState (t : ts)
-    | todoID == i = Todo i c newState : ts
-    | otherwise   = t : updateTodoState todoID oldState newState ts
+updateTodoState todoID oldState newState (t : todos)
+    | todoID == i = Todo i c newState : todos
+    | otherwise   = t : updateTodoState todoID oldState newState todos
     where (Todo i c _) = t
 
 undo :: Action -> Action
